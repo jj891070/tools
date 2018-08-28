@@ -1,0 +1,68 @@
+version: '3'
+
+services:
+  gitea:
+    image: gitea/gitea:latest
+    # build: .
+    ports:
+      - "10022:22"
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    environment:
+      - DB_TYPE=mysql
+      - DB_HOST=db:3306
+      - DB_NAME=gitea
+      - DB_USER=gitea
+      - DB_PASSWD=gitea
+      - ROOT_URL=http://192.168.1.104:3000/
+      # - DOMAIN=gitea
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=gitea
+      - MYSQL_USER=gitea
+      - MYSQL_PASSWORD=gitea
+      - MYSQL_DATABASE=gitea
+    volumes:
+      - ./mysql:/var/lib/mysql
+  adminer:
+        image: adminer
+        restart: always
+        ports:
+            - "3307:8080"
+  drone-server:
+    image: drone/drone:latest
+    ports:
+      - 8000:8000
+      - 9000:9000
+    volumes:
+      - ./drone:/var/lib/drone/
+    restart: always
+    environment:
+      - DRONE_OPEN=true
+      - DRONE_HOST=http://drone-server:8000
+      - DRONE_GITEA=true
+      - DRONE_GITEA_URL=http://gitea:3000
+      - DRONE_GITEA_GIT_USERNAME=jj891070
+      - DRONE_GITEA_GIT_PASSWORD=qwe123
+      # - DRONE_GITHUB=true
+      # - DRONE_GITHUB_CLIENT=${DRONE_GITHUB_CLIENT}
+      # - DRONE_GITHUB_SECRET=${DRONE_GITHUB_SECRET}
+      - DRONE_SECRET=drone-ci
+
+  drone-agent:
+    image: drone/agent:latest
+    command: agent
+    restart: always
+    depends_on:
+      - drone-server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DRONE_SERVER=drone-server:9000
+      - DRONE_SECRET=drone-ci
+  apache:
+    image: httpd
+    restart: always
